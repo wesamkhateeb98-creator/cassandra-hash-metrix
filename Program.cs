@@ -12,31 +12,21 @@ var host = args.Length > 2 ? args[2] : Environment.GetEnvironmentVariable("EVIDE
 
 var port = args.Length > 3 ? int.Parse(args[3]) : int.Parse(Environment.GetEnvironmentVariable("EVIDENCE_CASSANDRA_PORT") ?? "19042");
 
+var steps = new StepReport();
+
 using var cluster = Cluster.Builder().AddContactPoint(host).WithPort(port).Build();
 
-using var session = await cluster.ConnectAsync("evidence_task2_local_rf1");
+using var session = await steps.RunAsync("Connect", "cluster.ConnectAsync", () => cluster.ConnectAsync("evidence_task2_local_rf1"));
 
-await session.ExecuteAsync(new SimpleStatement(BenchmarkTables.CreateNoHashTable));
+await steps.RunAsync("CreateTablesAsync", "CREATE no-hash table + CREATE with-hash table", () => BenchmarkSteps.CreateTablesAsync(session));
 
-await session.ExecuteAsync(new SimpleStatement(BenchmarkTables.CreateWithHashTable));
+var inserts = await steps.RunAsync("PrepareInsertsAsync", "prepare no-hash INSERT + prepare with-hash INSERT", () => BenchmarkSteps.PrepareInsertsAsync(session));
 
-var insertNoHash = await session.PrepareAsync(BenchmarkTables.InsertNoHash);
+var (warmup, proofs) = steps.Run("CreateProofs", "create warmup proofs + create bench proofs", () => BenchmarkSteps.CreateProofs(warmupCount, proofCount));
 
-var insertWithHash = await session.PrepareAsync(BenchmarkTables.InsertWithHash);
+await steps.RunAsync("WarmUpAsync", "write warmup no-hash + write warmup with-hash", () => BenchmarkSteps.WarmUpAsync(session, inserts, warmup));
 
-var run = Guid.NewGuid().ToString("N")[..8];
-
-var warmup = BenchmarkProofs.Create("warmup-" + run, warmupCount);
-
-var proofs = BenchmarkProofs.Create("bench-" + run, proofCount);
-
-await ProofWriter.WriteAllAsync(session, insertNoHash, warmup, withHash: false);
-
-await ProofWriter.WriteAllAsync(session, insertWithHash, warmup, withHash: true);
-
-var withoutHash = await ProofWriter.WriteAllAsync(session, insertNoHash, proofs, withHash: false);
-
-var withHash = await ProofWriter.WriteAllAsync(session, insertWithHash, proofs, withHash: true);
+var (withoutHash, withHash) = await steps.RunAsync("MeasureAsync", "write proofs no-hash + write proofs with-hash", () => BenchmarkSteps.MeasureAsync(session, inserts, proofs));
 
 Console.WriteLine($"Cassandra {host}:{port}, session {proofs[0].SessionId}, proofs {proofCount}, warmup {warmupCount} (excluded).");
 
@@ -55,4 +45,12 @@ Console.WriteLine();
 Console.WriteLine($"Hash cost per proof: +{withHash.AverageAllocatedBytes - withoutHash.AverageAllocatedBytes:0} B allocated, " +
     $"+{withHash.AverageHashMicroseconds:0.00} µs hashing, +{withHash.AverageRowBytes - withoutHash.AverageRowBytes:0} B stored.");
 
-Console.WriteLine($"Verify: SELECT proof_id FROM proofs_by_session_no_hash WHERE session_id = '{proofs[0].SessionId}';");
+Console.WriteLine();
+
+Console.WriteLine("Per-method report:");
+
+Console.WriteLine(steps.ToTable());
+
+Console.WriteLine();
+
+Console.WriteLine($"Verify:SELECT proof_id FROM proofs_by_session_no_hash WHERE session_id = '{proofs[0].SessionId}';");

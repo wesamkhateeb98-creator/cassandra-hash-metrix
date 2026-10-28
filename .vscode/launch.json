@@ -2,23 +2,23 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug (proofs=1000 warmup=50)",
+      "name": "Debug (proofs=1000 counter=10)",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
       "program": "${workspaceFolder}/bin/Debug/net10.0/CassandraHashMetrix.dll",
-      "args": ["1000", "50", "127.0.0.1", "19042"],
+      "args": ["1000", "50", "127.0.0.1", "19042", "10"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "stopAtEntry": false
     },
     {
-      "name": "Release (proofs=1000 warmup=50)",
+      "name": "Release (proofs=1000 counter=10)",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-release",
       "program": "${workspaceFolder}/bin/Release/net10.0/CassandraHashMetrix.dll",
-      "args": ["1000", "50", "127.0.0.1", "19042"],
+      "args": ["1000", "50", "127.0.0.1", "19042", "10"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false,

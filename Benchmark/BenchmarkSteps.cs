@@ -20,15 +20,16 @@ internal static class BenchmarkSteps
         return (noHash, withHash);
     }
 
-    internal static (ProofRecord[] Warmup, ProofRecord[] Proofs) CreateProofs(int warmupCount, int proofCount)
+    internal static (ProofRecord[] Warmup, ProofRecord[][] Batches) CreateProofs(int warmupCount, int proofCount, int counter)
     {
         var run = Guid.NewGuid().ToString("N")[..8];
 
         var warmup = BenchmarkProofs.Create("warmup-" + run, warmupCount);
 
-        var proofs = BenchmarkProofs.Create("bench-" + run, proofCount);
+        // One fresh batch per iteration, so every iteration stores new rows instead of overwriting.
+        var batches = Enumerable.Range(1, counter).Select(iteration => BenchmarkProofs.Create($"bench-{run}-i{iteration}", proofCount)).ToArray();
 
-        return (warmup, proofs);
+        return (warmup, batches);
     }
 
     internal static async Task WarmUpAsync(ISession session, (PreparedStatement NoHash, PreparedStatement WithHash) inserts, ProofRecord[] warmup)
@@ -36,15 +37,5 @@ internal static class BenchmarkSteps
         await ProofWriter.WriteAllAsync(session, inserts.NoHash, warmup, withHash: false);
 
         await ProofWriter.WriteAllAsync(session, inserts.WithHash, warmup, withHash: true);
-    }
-
-    internal static async Task<(RunSummary WithoutHash, RunSummary WithHash)> MeasureAsync(
-        ISession session, (PreparedStatement NoHash, PreparedStatement WithHash) inserts, ProofRecord[] proofs)
-    {
-        var withoutHash = await ProofWriter.WriteAllAsync(session, inserts.NoHash, proofs, withHash: false);
-
-        var withHash = await ProofWriter.WriteAllAsync(session, inserts.WithHash, proofs, withHash: true);
-
-        return (withoutHash, withHash);
     }
 }

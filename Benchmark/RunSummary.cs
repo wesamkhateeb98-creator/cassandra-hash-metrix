@@ -45,6 +45,24 @@ internal sealed class RunSummary(int count)
         insertMicroseconds.Add(insert.TotalMicroseconds);
     }
 
+    /// <summary>Adds another run's samples, so per-iteration summaries roll up into one total.</summary>
+    internal void Merge(RunSummary other)
+    {
+        rowBytes += other.rowBytes;
+
+        allocatedBytes += other.allocatedBytes;
+
+        hashMicroseconds += other.hashMicroseconds;
+
+        prepareMicroseconds += other.prepareMicroseconds;
+
+        insertMicroseconds.AddRange(other.insertMicroseconds);
+
+        Total += other.Total;
+
+        Gen0Collections += other.Gen0Collections;
+    }
+
     internal double InsertPercentile(double percentile)
     {
         var sorted = insertMicroseconds.Order().ToArray();

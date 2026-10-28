@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cassandra-up",
+      "command": "docker",
+      "type": "process",
+      "args": ["compose", "up", "-d", "--wait"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "process",
+      "args": ["build", "${workspaceFolder}/CassandraHashMetrix.csproj", "-c", "Debug"],
+      "dependsOn": "cassandra-up",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-release",
+      "command": "dotnet",
+      "type": "process",
+      "args": ["build", "${workspaceFolder}/CassandraHashMetrix.csproj", "-c", "Release"],
+      "dependsOn": "cassandra-up",
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

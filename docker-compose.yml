@@ -1,0 +1,34 @@
+services:
+  cassandra:
+    image: cassandra:5.0
+    container_name: cassandra-hash-metrix
+    ports:
+      - "19042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: hash-metrix
+      MAX_HEAP_SIZE: 1G
+      HEAP_NEWSIZE: 256M
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE KEYSPACES' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 40s
+
+  # Creates the keyspace Program.cs connects to, then exits.
+  cassandra-init:
+    image: cassandra:5.0
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    entrypoint:
+      - cqlsh
+      - cassandra
+      - -e
+      - "CREATE KEYSPACE IF NOT EXISTS evidence_task2_local_rf1 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+    restart: "no"
+
+volumes:
+  cassandra-data:
